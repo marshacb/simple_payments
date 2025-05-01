@@ -1,86 +1,99 @@
-# 🏦 Payment Processing System
+# Payment Transaction Processor
 
-A performant and robust command-line tool to process and manage client transactions using Rust. The system supports deposits, withdrawals, disputes, resolutions, and chargebacks, handling CSV input and producing accurate, rounded output.
+This project implements a payment transaction engine in Rust that reads financial transaction records in CSV format and maintains accurate account balances per client.
 
----
+It supports two modes:
 
-## 📋 Features
-
-- Supports transaction types: `deposit`, `withdraw`, `dispute`, `resolve`, `chargeback`
-- Ensures 4-decimal place precision using `rust_decimal`
-- Maintains accurate client account states (available, held, total, locked)
-- Prevents duplicate processing and handles account locking
-- Written with safe streaming and in-memory efficiency
-- Includes a comprehensive test suite
+- **File mode**: Reads a CSV input from a file (or stdin) and writes processed account states to stdout or a file.
+- **TCP mode (`--tcp`)**: Accepts CSV streams from multiple concurrent TCP clients and processes them in parallel.
 
 ---
 
-## 🚀 Getting Started
+## Features
 
-### Requirements
+- Supports transaction types:
+  - `deposit`
+  - `withdrawal`
+  - `dispute`
+  - `resolve`
+  - `chargeback`
+- Accurate floating-point math using [`rust_decimal`](https://docs.rs/rust_decimal/)
+- Graceful handling of malformed or duplicate transactions
+- Output format:
+  - `client`, `available`, `held`, `total`, `locked`
+- Unit tested for correctness
+- TCP mode using multithreading and channels for concurrent stream handling
 
-- Rust (edition 2021 recommended)
-- Cargo (Rust package manager)
+---
 
-### Build
+## Usage
+
+### 📄 File Mode (Default)
+
+Process a CSV file and write the resulting account states:
 
 ```bash
-cargo build --release
+cargo run -- input.csv > output.csv
 ```
 
-### Run
+### 🌐 TCP Mode (Concurrent Streaming)
+
+Start the engine in TCP server mode:
 
 ```bash
-cargo run --release -- path/to/input.csv > output.csv
+cargo run -- --tcp
 ```
 
-### Input CSV Format
+It listens on `127.0.0.1:4000` and processes multiple TCP streams in parallel. Each stream should send valid CSV data in the same format as file mode. The results are written to a single `output.csv` file.
 
-CSV should include headers and follow this structure:
+> **Note**: This mode is intended as a proof-of-concept for real-time streaming input from distributed sources.
+
+---
+
+## CSV Format
+
+Each row should represent a transaction:
 
 ```csv
 type, client, tx, amount
-deposit, 1, 1, 100.0
-withdraw, 1, 2, 50.0
+deposit, 1, 1, 1.0
+withdrawal, 1, 2, 0.5
+dispute, 1, 1
+resolve, 1, 1
+chargeback, 1, 1
 ```
 
-Supported `type` values:
+- The `amount` field is only required for `deposit` and `withdrawal`.
+- Fields must match the expected column count per row, or a parse error will occur.
 
-- `deposit`
-- `withdraw`
-- `dispute`
-- `resolve`
-- `chargeback`
+---
 
-### Output CSV Format
-
-After processing, the program prints to `stdout`:
+## Example Output
 
 ```csv
 client,available,held,total,locked
-1,50.0000,0.0000,50.0000,false
+1,0.5000,0.0000,0.5000,false
 ```
 
 ---
 
-## 🧪 Running Tests
+## Architecture
+
+- `PaymentSystem`: Core state manager, holds account and transaction ledgers.
+- `Arc<Mutex<...>>`: Shared state safely accessible from multiple threads.
+- `csv_reader`: Contains logic for reading and parsing CSV input from file or stream.
+- TCP mode uses:
+  - `TcpListener` to accept clients
+  - `std::thread` to spawn stream workers
+  - `mpsc::channel` to send processed output to a writer thread
+
+---
+
+## Development
+
+Build and run tests:
 
 ```bash
+cargo build
 cargo test
 ```
-
----
-
-## 🗃 Project Structure
-
-- `main.rs` – Entry point and main CSV processing logic
-- `account.rs` – Client account model and logic
-- `transaction.rs` – Transaction data model
-- `tests` – Extensive unit tests for transaction logic
-
----
-
-## 📦 Dependencies
-
-- [`csv`](https://docs.rs/csv) – Fast CSV reading/writing
-- [`rust_decimal`](https://docs.rs/rust_decimal) – Precise decimal arithmetic
