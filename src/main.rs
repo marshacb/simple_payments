@@ -130,11 +130,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut wtr = Writer::from_path("output.csv").expect("Failed to open file");
             wtr.write_record(["client", "available", "held", "total", "locked"])
                 .unwrap();
+            wtr.flush().unwrap();
 
             for record in rx {
                 if let Err(e) = wtr.write_record(&record) {
                     eprintln!("Failed to write record: {}", e);
                 }
+                wtr.flush().unwrap();
             }
 
             wtr.flush().unwrap();

@@ -71,5 +71,6 @@ pub fn process_csv_stream<R: Read>(
         }
     }
 
+    drop(tx);
     Ok(())
 }
